@@ -523,6 +523,8 @@ class Kernel implements KernelContract
     {
         $this->middleware = $middleware;
 
+        $this->syncMiddlewareToRouter();
+
         return $this;
     }
 
@@ -545,6 +547,8 @@ class Kernel implements KernelContract
     public function setMiddlewareGroups(array $groups)
     {
         $this->middlewareGroups = $groups;
+
+        $this->syncMiddlewareToRouter();
 
         return $this;
     }
@@ -580,6 +584,8 @@ class Kernel implements KernelContract
     public function setMiddlewareAliases(array $aliases)
     {
         $this->middlewareAliases = $aliases;
+
+        $this->syncMiddlewareToRouter();
 
         return $this;
     }
