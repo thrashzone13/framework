@@ -404,6 +404,24 @@ class DatabaseEloquentModelTest extends TestCase
         $this->assertTrue($model->isDirty('asEnumArrayObjectAttribute'));
     }
 
+    public function testDirtyOnCustomEnumArrayObjectUsing()
+    {
+        $model = new EloquentModelCastingStub;
+        $model->setRawAttributes([
+            'asEnumArrayObjectUsingAttribute' => '["draft", "pending"]',
+        ]);
+        $model->syncOriginal();
+
+        $this->assertInstanceOf(ArrayObject::class, $model->asEnumArrayObjectUsingAttribute);
+        $this->assertFalse($model->isDirty('asEnumArrayObjectUsingAttribute'));
+
+        $model->asEnumArrayObjectUsingAttribute = ['draft', 'pending'];
+        $this->assertFalse($model->isDirty('asEnumArrayObjectUsingAttribute'));
+
+        $model->asEnumArrayObjectUsingAttribute = ['draft', 'done'];
+        $this->assertTrue($model->isDirty('asEnumArrayObjectUsingAttribute'));
+    }
+
     public function testHasCastsOnEnumAttribute()
     {
         $model = new EloquentModelEnumCastingStub();
@@ -3118,6 +3136,7 @@ class EloquentModelCastingStub extends Model
         'ascollectionAttribute' => AsCollection::class,
         'asEncryptedCollectionAttribute' => AsEncryptedCollection::class,
         'asEnumCollectionAttribute' => AsEnumCollection::class.':'.StringStatus::class,
+        'asEnumArrayObjectAttribute' => AsEnumArrayObject::class.':'.StringStatus::class,
     ];
 
     protected function casts(): array
@@ -3134,7 +3153,7 @@ class EloquentModelCastingStub extends Model
             'asCollectionUsingAttribute' => AsCollection::using(CustomCollection::class),
             'asEncryptedArrayObjectAttribute' => AsEncryptedArrayObject::class,
             'asEncryptedCollectionUsingAttribute' => AsEncryptedCollection::using(CustomCollection::class),
-            'asEnumArrayObjectAttribute' => [AsEnumArrayObject::class, StringStatus::class],
+            'asEnumArrayObjectUsingAttribute' => AsEnumArrayObject::using(StringStatus::class),
         ];
     }
 
