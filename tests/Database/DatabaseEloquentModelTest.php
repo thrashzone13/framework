@@ -2805,6 +2805,18 @@ class DatabaseEloquentModelTest extends TestCase
         $this->assertEquals(['foo' => 'bar2'], $model->getAttribute('collectionAttribute')->toArray());
     }
 
+    public function testCastMethodHasPriorityOverProperty()
+    {
+        $model = new EloquentModelCastingStub;
+        $model->setRawAttributes([
+            'duplicatedAttribute' => '1',
+        ], true);
+
+        $this->assertIsInt($model->duplicatedAttribute);
+        $this->assertEquals(1, $model->duplicatedAttribute);
+        $this->assertEquals(1, $model->getAttribute('duplicatedAttribute'));
+    }
+
     public function testUnsavedModel()
     {
         $user = new UnsavedModel;
@@ -3217,6 +3229,7 @@ class EloquentModelCastingStub extends Model
         'asEncryptedCollectionAttribute' => AsEncryptedCollection::class,
         'asEnumCollectionAttribute' => AsEnumCollection::class.':'.StringStatus::class,
         'asEnumArrayObjectAttribute' => AsEnumArrayObject::class.':'.StringStatus::class,
+        'duplicatedAttribute' => 'string',
     ];
 
     protected function casts(): array
@@ -3236,6 +3249,7 @@ class EloquentModelCastingStub extends Model
             'asEncryptedCustomCollectionAsArrayAttribute' => [AsEncryptedCollection::class, CustomCollection::class],
             'asCustomEnumCollectionAttribute' => AsEnumCollection::using(StringStatus::class),
             'asCustomEnumArrayObjectAttribute' => AsEnumArrayObject::using(StringStatus::class),
+            'duplicatedAttribute' => 'int',
         ];
     }
 
