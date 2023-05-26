@@ -2062,7 +2062,7 @@ class DatabaseEloquentModelTest extends TestCase
         $model->touchOwners();
     }
 
-    public function testModelAttributesAreCastedWhenPresentInCastsArray()
+    public function testModelAttributesAreCastedWhenPresentInCastsPropertyOrClass()
     {
         $model = new EloquentModelCastingStub;
         $model->setDateFormat('Y-m-d H:i:s');
@@ -2210,7 +2210,7 @@ class DatabaseEloquentModelTest extends TestCase
         $model->getAttributes();
     }
 
-    public function testModelAttributeCastingWithSpecialFloatValues()
+    public function testModelAttributeCastingWithFloats()
     {
         $model = new EloquentModelCastingStub;
 
@@ -2236,6 +2236,14 @@ class DatabaseEloquentModelTest extends TestCase
         $this->assertNan($model->floatAttribute);
     }
 
+    public function testModelAttributeCastingWithArrays()
+    {
+        $model = new EloquentModelCastingStub;
+
+        $model->asEnumArrayObjectAttribute = ['draft', 'pending'];
+        $this->assertInstanceOf(ArrayObject::class, $model->asEnumArrayObjectAttribute);
+    }
+
     public function testMergeCastsMergesCasts()
     {
         $model = new EloquentModelCastingStub;
@@ -2246,6 +2254,23 @@ class DatabaseEloquentModelTest extends TestCase
         $model->mergeCasts(['foo' => 'date']);
         $this->assertCount($castCount + 1, $model->getCasts());
         $this->assertArrayHasKey('foo', $model->getCasts());
+    }
+
+    public function testMergeCastsMergesCastsUsingArrays()
+    {
+        $model = new EloquentModelCastingStub;
+
+        $castCount = count($model->getCasts());
+        $this->assertArrayNotHasKey('foo', $model->getCasts());
+
+        $model->mergeCasts([
+            'foo' => ['MyClass', 'myArgumentA'],
+            'bar' => ['MyClass', 'myArgumentA', 'myArgumentB'],
+        ]);
+        $this->assertCount($castCount + 2, $model->getCasts());
+        $this->assertArrayHasKey('foo', $model->getCasts());
+        $this->assertEquals($model->getCasts()['foo'], 'MyClass:myArgumentA');
+        $this->assertEquals($model->getCasts()['bar'], 'MyClass:myArgumentA,myArgumentB');
     }
 
     public function testUpdatingNonExistentModelFails()
@@ -3021,26 +3046,32 @@ class EloquentModelGetMutatorsStub extends Model
 class EloquentModelCastingStub extends Model
 {
     protected $casts = [
-        'intAttribute' => 'int',
         'floatAttribute' => 'float',
-        'stringAttribute' => 'string',
         'boolAttribute' => 'bool',
-        'booleanAttribute' => 'boolean',
         'objectAttribute' => 'object',
-        'arrayAttribute' => 'array',
         'jsonAttribute' => 'json',
-        'collectionAttribute' => 'collection',
         'dateAttribute' => 'date',
-        'datetimeAttribute' => 'datetime',
         'timestampAttribute' => 'timestamp',
-        'asarrayobjectAttribute' => AsArrayObject::class,
         'ascollectionAttribute' => AsCollection::class,
-        'asStringableAttribute' => AsStringable::class,
         'asEncryptedCollectionAttribute' => AsEncryptedCollection::class,
-        'asEncryptedArrayObjectAttribute' => AsEncryptedArrayObject::class,
         'asEnumCollectionAttribute' => AsEnumCollection::class.':'.StringStatus::class,
-        'asEnumArrayObjectAttribute' => AsEnumArrayObject::class.':'.StringStatus::class,
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'intAttribute' => 'int',
+            'stringAttribute' => 'string',
+            'booleanAttribute' => 'boolean',
+            'arrayAttribute' => 'array',
+            'collectionAttribute' => 'collection',
+            'datetimeAttribute' => 'datetime',
+            'asarrayobjectAttribute' => AsArrayObject::class,
+            'asStringableAttribute' => AsStringable::class,
+            'asEncryptedArrayObjectAttribute' => AsEncryptedArrayObject::class,
+            'asEnumArrayObjectAttribute' => [AsEnumArrayObject::class, StringStatus::class],
+        ];
+    }
 
     public function jsonAttributeValue()
     {

@@ -181,6 +181,16 @@ trait HasAttributes
      */
     public static $encrypter;
 
+   /**
+     * Initialize the trait.
+     *
+     * @return void
+     */
+    protected function initializeHasAttributes()
+    {
+        $this->mergeCastsFromClassCastsMethod();
+    }
+
     /**
      * Convert the model's attributes to an array.
      *
@@ -711,6 +721,38 @@ trait HasAttributes
     }
 
     /**
+     * Ensures that the given casts are strings.
+     *
+     * @param  array  $casts
+     * @return array
+     */
+    protected function ensureCastsAreStringValues($casts)
+    {
+        foreach ($casts as $attribute => $cast) {
+            $casts[$attribute] = match (true) {
+                is_array($cast) => value(function () use ($cast) {
+                    [$cast, $arguments] = [array_shift($cast), $cast];
+
+                    return $cast.':'.implode(',', $arguments);
+                }),
+                default => $cast,
+            };
+        }
+
+        return $casts;
+    }
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @return array
+     */
+    protected function casts()
+    {
+        return [];
+    }
+
+    /**
      * Merge new casts with existing casts on the model.
      *
      * @param  array  $casts
@@ -718,10 +760,25 @@ trait HasAttributes
      */
     public function mergeCasts($casts)
     {
+        $casts = $this->ensureCastsAreStringValues($casts);
+
         $this->casts = array_merge($this->casts, $casts);
 
         return $this;
     }
+
+    /**
+     * Merge model's casts method with the casts property.
+     *
+     * @return $this
+     */
+    protected function mergeCastsFromClassCastsMethod()
+    {
+        $this->casts = array_merge($this->casts, $this->ensureCastsAreStringValues($this->casts()));
+
+        return $this;
+    }
+
 
     /**
      * Cast an attribute to a native PHP type.
