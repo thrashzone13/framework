@@ -221,6 +221,24 @@ class DatabaseEloquentModelTest extends TestCase
         $this->assertTrue($model->isDirty('asCustomCollectionAttribute'));
     }
 
+    public function testDirtyOnCastedCustomCollectionAsArray()
+    {
+        $model = new EloquentModelCastingStub;
+        $model->setRawAttributes([
+            'asCustomCollectionAsArrayAttribute' => '{"bar": "foo"}',
+        ]);
+        $model->syncOriginal();
+
+        $this->assertInstanceOf(CustomCollection::class, $model->asCustomCollectionAsArrayAttribute);
+        $this->assertFalse($model->isDirty('asCustomCollectionAsArrayAttribute'));
+
+        $model->asCustomCollectionAsArrayAttribute = ['bar' => 'foo'];
+        $this->assertFalse($model->isDirty('asCustomCollectionAsArrayAttribute'));
+
+        $model->asCustomCollectionAsArrayAttribute = ['baz' => 'foo'];
+        $this->assertTrue($model->isDirty('asCustomCollectionAsArrayAttribute'));
+    }
+
     public function testDirtyOnCastedStringable()
     {
         $model = new EloquentModelCastingStub;
@@ -323,6 +341,49 @@ class DatabaseEloquentModelTest extends TestCase
 
         $model->asEncryptedCustomCollectionAttribute = ['foo' => 'baz'];
         $this->assertTrue($model->isDirty('asEncryptedCustomCollectionAttribute'));
+    }
+
+    public function testDirtyOnCastedEncryptedCustomCollectionAsArray()
+    {
+        $this->encrypter = m::mock(Encrypter::class);
+        Crypt::swap($this->encrypter);
+        Model::$encrypter = null;
+
+        $this->encrypter->expects('encryptString')
+            ->twice()
+            ->with('{"foo":"bar"}')
+            ->andReturn('encrypted-custom-value');
+
+        $this->encrypter->expects('decryptString')
+            ->with('encrypted-custom-value')
+            ->andReturn('{"foo": "bar"}');
+
+        $this->encrypter->expects('encryptString')
+            ->with('{"foo":"baz"}')
+            ->andReturn('new-encrypted-custom-value');
+
+        $this->encrypter->expects('decrypt')
+            ->with('encrypted-custom-value', false)
+            ->andReturn('{"foo": "bar"}');
+
+        $this->encrypter->expects('decrypt')
+            ->with('new-encrypted-custom-value', false)
+            ->andReturn('{"foo":"baz"}');
+
+        $model = new EloquentModelCastingStub;
+        $model->setRawAttributes([
+            'asEncryptedCustomCollectionAsArrayAttribute' => 'encrypted-custom-value',
+        ]);
+        $model->syncOriginal();
+
+        $this->assertInstanceOf(CustomCollection::class, $model->asEncryptedCustomCollectionAsArrayAttribute);
+        $this->assertFalse($model->isDirty('asEncryptedCustomCollectionAsArrayAttribute'));
+
+        $model->asEncryptedCustomCollectionAsArrayAttribute = ['foo' => 'bar'];
+        $this->assertFalse($model->isDirty('asEncryptedCustomCollectionAsArrayAttribute'));
+
+        $model->asEncryptedCustomCollectionAsArrayAttribute = ['foo' => 'baz'];
+        $this->assertTrue($model->isDirty('asEncryptedCustomCollectionAsArrayAttribute'));
     }
 
     public function testDirtyOnCastedEncryptedArrayObject()
@@ -3152,6 +3213,7 @@ class EloquentModelCastingStub extends Model
         'dateAttribute' => 'date',
         'timestampAttribute' => 'timestamp',
         'ascollectionAttribute' => AsCollection::class,
+        'asCustomCollectionAsArrayAttribute' => [AsCollection::class, CustomCollection::class],
         'asEncryptedCollectionAttribute' => AsEncryptedCollection::class,
         'asEnumCollectionAttribute' => AsEnumCollection::class.':'.StringStatus::class,
         'asEnumArrayObjectAttribute' => AsEnumArrayObject::class.':'.StringStatus::class,
@@ -3171,6 +3233,7 @@ class EloquentModelCastingStub extends Model
             'asCustomCollectionAttribute' => AsCollection::using(CustomCollection::class),
             'asEncryptedArrayObjectAttribute' => AsEncryptedArrayObject::class,
             'asEncryptedCustomCollectionAttribute' => AsEncryptedCollection::using(CustomCollection::class),
+            'asEncryptedCustomCollectionAsArrayAttribute' => [AsEncryptedCollection::class, CustomCollection::class],
             'asCustomEnumCollectionAttribute' => AsEnumCollection::using(StringStatus::class),
             'asCustomEnumArrayObjectAttribute' => AsEnumArrayObject::using(StringStatus::class),
         ];
