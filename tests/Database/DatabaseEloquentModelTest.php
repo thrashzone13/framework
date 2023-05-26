@@ -190,24 +190,35 @@ class DatabaseEloquentModelTest extends TestCase
         $model = new EloquentModelCastingStub;
         $model->setRawAttributes([
             'ascollectionAttribute' => '{"foo": "bar"}',
-            'ascollectionusingAttribute' => '{"bar": "foo"}',
         ]);
         $model->syncOriginal();
 
         $this->assertInstanceOf(BaseCollection::class, $model->ascollectionAttribute);
         $this->assertFalse($model->isDirty('ascollectionAttribute'));
-        $this->assertInstanceOf(CustomCollection::class, $model->ascollectionusingAttribute);
-        $this->assertFalse($model->isDirty('ascollectionusingAttribute'));
 
         $model->ascollectionAttribute = ['foo' => 'bar'];
         $this->assertFalse($model->isDirty('ascollectionAttribute'));
-        $model->ascollectionusingAttribute = ['bar' => 'foo'];
-        $this->assertFalse($model->isDirty('ascollectionusingAttribute'));
 
         $model->ascollectionAttribute = ['foo' => 'baz'];
         $this->assertTrue($model->isDirty('ascollectionAttribute'));
-        $model->ascollectionusingAttribute = ['baz' => 'foo'];
-        $this->assertTrue($model->isDirty('ascollectionusingAttribute'));
+    }
+
+    public function testDirtyOnCastedCustomCollection()
+    {
+        $model = new EloquentModelCastingStub;
+        $model->setRawAttributes([
+            'asCollectionUsingAttribute' => '{"bar": "foo"}',
+        ]);
+        $model->syncOriginal();
+
+        $this->assertInstanceOf(CustomCollection::class, $model->asCollectionUsingAttribute);
+        $this->assertFalse($model->isDirty('asCollectionUsingAttribute'));
+
+        $model->asCollectionUsingAttribute = ['bar' => 'foo'];
+        $this->assertFalse($model->isDirty('asCollectionUsingAttribute'));
+
+        $model->asCollectionUsingAttribute = ['baz' => 'foo'];
+        $this->assertTrue($model->isDirty('asCollectionUsingAttribute'));
     }
 
     public function testDirtyOnCastedStringable()
@@ -269,6 +280,49 @@ class DatabaseEloquentModelTest extends TestCase
 
         $model->asEncryptedCollectionAttribute = ['foo' => 'baz'];
         $this->assertTrue($model->isDirty('asEncryptedCollectionAttribute'));
+    }
+
+    public function testDirtyOnCastedEncryptedCustomCollection()
+    {
+        $this->encrypter = m::mock(Encrypter::class);
+        Crypt::swap($this->encrypter);
+        Model::$encrypter = null;
+
+        $this->encrypter->expects('encryptString')
+            ->twice()
+            ->with('{"foo":"bar"}')
+            ->andReturn('encrypted-custom-value');
+
+        $this->encrypter->expects('decryptString')
+            ->with('encrypted-custom-value')
+            ->andReturn('{"foo": "bar"}');
+
+        $this->encrypter->expects('encryptString')
+            ->with('{"foo":"baz"}')
+            ->andReturn('new-encrypted-custom-value');
+
+        $this->encrypter->expects('decrypt')
+            ->with('encrypted-custom-value', false)
+            ->andReturn('{"foo": "bar"}');
+
+        $this->encrypter->expects('decrypt')
+            ->with('new-encrypted-custom-value', false)
+            ->andReturn('{"foo":"baz"}');
+
+        $model = new EloquentModelCastingStub;
+        $model->setRawAttributes([
+            'asEncryptedCollectionUsingAttribute' => 'encrypted-custom-value',
+        ]);
+        $model->syncOriginal();
+
+        $this->assertInstanceOf(CustomCollection::class, $model->asEncryptedCollectionUsingAttribute);
+        $this->assertFalse($model->isDirty('asEncryptedCollectionUsingAttribute'));
+
+        $model->asEncryptedCollectionUsingAttribute = ['foo' => 'bar'];
+        $this->assertFalse($model->isDirty('asEncryptedCollectionUsingAttribute'));
+
+        $model->asEncryptedCollectionUsingAttribute = ['foo' => 'baz'];
+        $this->assertTrue($model->isDirty('asEncryptedCollectionUsingAttribute'));
     }
 
     public function testDirtyOnCastedEncryptedArrayObject()
@@ -2087,7 +2141,7 @@ class DatabaseEloquentModelTest extends TestCase
         $model->datetimeAttribute = '1969-07-20 22:56:00';
         $model->timestampAttribute = '1969-07-20 22:56:00';
         $model->collectionAttribute = new BaseCollection;
-        $model->ascollectionusingAttribute = new CustomCollection;
+        $model->asCollectionUsingAttribute = new CustomCollection;
 
         $this->assertIsInt($model->intAttribute);
         $this->assertIsFloat($model->floatAttribute);
@@ -2106,7 +2160,7 @@ class DatabaseEloquentModelTest extends TestCase
         $this->assertInstanceOf(Carbon::class, $model->dateAttribute);
         $this->assertInstanceOf(Carbon::class, $model->datetimeAttribute);
         $this->assertInstanceOf(BaseCollection::class, $model->collectionAttribute);
-        $this->assertInstanceOf(CustomCollection::class, $model->ascollectionusingAttribute);
+        $this->assertInstanceOf(CustomCollection::class, $model->asCollectionUsingAttribute);
         $this->assertSame('1969-07-20', $model->dateAttribute->toDateString());
         $this->assertSame('1969-07-20 22:56:00', $model->datetimeAttribute->toDateTimeString());
         $this->assertEquals(-14173440, $model->timestampAttribute);
@@ -3077,8 +3131,9 @@ class EloquentModelCastingStub extends Model
             'datetimeAttribute' => 'datetime',
             'asarrayobjectAttribute' => AsArrayObject::class,
             'asStringableAttribute' => AsStringable::class,
-            'ascollectionusingAttribute' => AsCollection::using(CustomCollection::class),
+            'asCollectionUsingAttribute' => AsCollection::using(CustomCollection::class),
             'asEncryptedArrayObjectAttribute' => AsEncryptedArrayObject::class,
+            'asEncryptedCollectionUsingAttribute' => AsEncryptedCollection::using(CustomCollection::class),
             'asEnumArrayObjectAttribute' => [AsEnumArrayObject::class, StringStatus::class],
         ];
     }
